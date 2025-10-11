@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Trip Expense Planner</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f7f9fc;
+      color: #333;
+    }
+    header {
+      background: #0077b6;
+      color: white;
+      padding: 15px;
+      text-align: center;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 20px auto;
+      background: white;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    .tabs {
+      display: flex;
+      margin-bottom: 20px;
+    }
+    .tab {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      cursor: pointer;
+      border-bottom: 2px solid #ccc;
+    }
+    .tab.active {
+      border-bottom: 2px solid #0077b6;
+      font-weight: bold;
+    }
+
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 4px;
+    }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%;
+      padding: 7px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    .btn {
+      background: #0077b6;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 8px;
+    }
+    .btn:hover {
+      background: #005f8e;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    table, th, td {
+      border: 1px solid #aaa;
+    }
+    th, td {
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background: #e0f0ff;
+    }
+
+    .settlement-table th, .settlement-table td {
+      text-align: center;
+    }
+.table-responsive {
+  overflow-x: auto;
+  width: 100%;
+}
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      .print-area, .print-area * {
+        visibility: visible;
+      }
+      .print-area {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Trip Expense Planner</h1>
+  </header>
+
+  <div class="container">
+    <div class="tabs">
+      <div class="tab active" data-tab="expenses">Expenses</div>
+      <div class="tab" data-tab="settlement">Settlement</div>
+    </div>
+
+    <div class="tab-content active" id="expenses">
+      <h2>Register People</h2>
+      <div class="form-group">
+        <label for="personName">Person Name</label>
+        <input type="text" id="personName" placeholder="Enter name"/>
+      </div>
+      <button class="btn" onclick="addPerson()">Add Person</button>
+
+      <h3>People List:</h3>
+      <ul id="peopleList"></ul>
+
+      <hr/>
+
+      <h2>Add Expense</h2>
+      <div class="form-group">
+        <label for="expDate">Date</label>
+        <input type="date" id="expDate"/>
+      </div>
+      <div class="form-group">
+        <label for="category">Category</label>
+        <select id="category">
+          <option value="">-- Select --</option>
+          <option value="Food">Food</option>
+          <option value="Hotel">Hotel</option>
+          <option value="Travel">Travel</option>
+          <option value="Others">Others</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="amount">Amount</label>
+        <input type="number" id="amount" placeholder="Amount"/>
+      </div>
+      <div class="form-group">
+        <label>Involved Persons (unselect if not involved)</label>
+        <div id="involvedPersonsContainer">
+          <!-- checkboxes will be added here -->
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="paidBy">Paid By</label>
+        <select id="paidBy">
+          <option value="">-- Select Person --</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="notes">Notes</label>
+        <textarea id="notes" rows="2" placeholder="Any notes..."></textarea>
+      </div>
+      <button class="btn" onclick="addExpense()">Add Expense</button>
+<div class="table-responsive">
+
+      <h3>Expenses List</h3>
+      
+      <table id="expenseTable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Category</th>
+            <th>Amount</th>
+            <th>Paid By</th>
+            <th>Involved Persons</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      </div>
+
+      <hr style="margin-top: 30px; margin-bottom: 10px;"/>
+      <button class="btn" onclick="printAll()">Print All (Expenses + Settlement)</button>
+      <button class="btn" onclick="resetAll()">Reset All Data</button>
+      <p><small>Reset password: <strong>1234</strong> — this is shown so you don’t forget, but helps avoid accidental taps.</small></p>
+    </div>
+
+    <div class="table-responsive">
+
+    <div class="tab-content" id="settlement">
+      <h2>Settlement</h2>
+      <table class="settlement-table" id="settlementTable">
+        <thead>
+          <tr>
+            <th>Person</th>
+            <th>Total Paid</th>
+            <th>Total Share</th>
+            <th>Balance (Paid − Share)</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="print-area" id="print-area">
+    <!-- This area is dynamically populated for printing -->
+  </div>
+
+  <script>
+    const RESET_PASSWORD = "1234";
+
+    function loadData() {
+      const people = JSON.parse(localStorage.getItem('people') || '[]');
+      const expenses = JSON.parse(localStorage.getItem('expenses') || '[]');
+      return { people, expenses };
+    }
+    function saveData(people, expenses) {
+      localStorage.setItem('people', JSON.stringify(people));
+      localStorage.setItem('expenses', JSON.stringify(expenses));
+    }
+
+    function refreshPeopleList() {
+      const { people } = loadData();
+      const ul = document.getElementById('peopleList');
+      ul.innerHTML = '';
+      people.forEach(p => {
+        const li = document.createElement('li');
+        li.textContent = p;
+        ul.appendChild(li);
+      });
+
+      // Refresh “paidBy” select
+      const paidBySel = document.getElementById('paidBy');
+      paidBySel.innerHTML = '<option value="">-- Select Person --</option>';
+      people.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p;
+        opt.textContent = p;
+        paidBySel.appendChild(opt);
+      });
+
+      // Refresh involved persons checkboxes
+      const cont = document.getElementById('involvedPersonsContainer');
+      cont.innerHTML = '';
+      people.forEach(p => {
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.id = 'involve_' + p;
+        cb.value = p;
+        cb.checked = true;
+        const lbl = document.createElement('label');
+        lbl.htmlFor = cb.id;
+        lbl.textContent = p;
+        const wrapper = document.createElement('div');
+        wrapper.appendChild(cb);
+        wrapper.appendChild(lbl);
+        cont.appendChild(wrapper);
+      });
+    }
+
+    function refreshExpenseTable() {
+      const { expenses } = loadData();
+      const tbody = document.querySelector('#expenseTable tbody');
+      tbody.innerHTML = '';
+      expenses.forEach(exp => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${exp.date}</td>
+          <td>${exp.category}</td>
+          <td>${exp.amount}</td>
+          <td>${exp.paidBy}</td>
+          <td>${exp.involved.join(', ')}</td>
+          <td>${exp.notes}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function addPerson() {
+      const nameInput = document.getElementById('personName');
+      const name = nameInput.value.trim();
+      if (!name) {
+        alert('Enter a name');
+        return;
+      }
+      const { people, expenses } = loadData();
+      if (people.includes(name)) {
+        alert('Person already exists');
+        return;
+      }
+      people.push(name);
+      saveData(people, expenses);
+      nameInput.value = '';
+      refreshPeopleList();
+    }
+
+    function addExpense() {
+      const date = document.getElementById('expDate').value;
+      const category = document.getElementById('category').value;
+      const amount = parseFloat(document.getElementById('amount').value);
+      const paidBy = document.getElementById('paidBy').value;
+      const notes = document.getElementById('notes').value;
+
+      if (!date || !category || isNaN(amount) || !paidBy) {
+        alert('Please fill in required fields.');
+        return;
+      }
+
+      const { people, expenses } = loadData();
+      const involved = [];
+      people.forEach(p => {
+        const cb = document.getElementById('involve_' + p);
+        if (cb && cb.checked) {
+          involved.push(p);
+        }
+      });
+      if (involved.length === 0) {
+        alert('At least one person must be involved');
+        return;
+      }
+
+      expenses.push({ date, category, amount, paidBy, notes, involved });
+      saveData(people, expenses);
+
+      // Reset form
+      setDefaultDate();
+      document.getElementById('category').value = '';
+      document.getElementById('amount').value = '';
+      document.getElementById('paidBy').value = '';
+      document.getElementById('notes').value = '';
+
+      refreshExpenseTable();
+    }
+
+    function refreshSettlementTab() {
+      const { people, expenses } = loadData();
+      const tbody = document.querySelector('#settlementTable tbody');
+      tbody.innerHTML = '';
+
+      if (people.length === 0) {
+        return;
+      }
+
+      const totalPaid = {};
+      const shareOwed = {};
+      people.forEach(p => {
+        totalPaid[p] = 0;
+        shareOwed[p] = 0;
+      });
+
+      expenses.forEach(exp => {
+        const amt = exp.amount;
+        const inv = exp.involved;
+        const sharePer = amt / inv.length;
+
+        // Payer paid whole
+        totalPaid[exp.paidBy] += amt;
+
+        // Each involved owes share
+        inv.forEach(p => {
+          shareOwed[p] += sharePer;
+        });
+      });
+
+      people.forEach(p => {
+        const paid = totalPaid[p] || 0;
+        const share = shareOwed[p] || 0;
+        const balance = paid - share;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${p}</td>
+          <td>${paid.toFixed(2)}</td>
+          <td>${share.toFixed(2)}</td>
+          <td>${balance.toFixed(2)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+
+        tab.classList.add('active');
+        const target = tab.getAttribute('data-tab');
+        document.getElementById(target).classList.add('active');
+
+        if (target === 'settlement') {
+          refreshSettlementTab();
+        }
+      });
+    });
+
+    function setDefaultDate() {
+      const today = new Date().toISOString().slice(0, 10);
+      document.getElementById('expDate').value = today;
+    }
+
+    function printAll() {
+      const { people, expenses } = loadData();
+      const printArea = document.getElementById('print-area');
+      printArea.innerHTML = '';
+
+      const h1 = document.createElement('h1');
+      h1.textContent = 'Trip Expense Report';
+      printArea.appendChild(h1);
+
+      // Expenses
+      const expH = document.createElement('h2');
+      expH.textContent = 'Expenses';
+      printArea.appendChild(expH);
+
+      const expTable = document.createElement('table');
+      expTable.innerHTML = `
+        <thead>
+          <tr>
+            <th>Date</th><th>Category</th><th>Amount</th><th>Paid By</th><th>Involved</th><th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${expenses.map(e => `
+            <tr>
+              <td>${e.date}</td>
+              <td>${e.category}</td>
+              <td>${e.amount}</td>
+              <td>${e.paidBy}</td>
+              <td>${e.involved.join(', ')}</td>
+              <td>${e.notes}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      `;
+      printArea.appendChild(expTable);
+
+      // Settlement
+      refreshSettlementTab();
+      const settH = document.createElement('h2');
+      settH.textContent = 'Settlement';
+      printArea.appendChild(settH);
+
+      const settTbl = document.getElementById('settlementTable').cloneNode(true);
+      printArea.appendChild(settTbl);
+
+      window.print();
+    }
+
+    function resetAll() {
+      const pwd = prompt('Enter reset password to clear all data:');
+      if (pwd === RESET_PASSWORD) {
+        localStorage.removeItem('people');
+        localStorage.removeItem('expenses');
+        alert('All data cleared.');
+        refreshPeopleList();
+        refreshExpenseTable();
+        document.querySelector('#settlementTable tbody').innerHTML = '';
+      } else {
+        alert('Wrong password. Reset aborted.');
+      }
+    }
+
+    window.onload = () => {
+      setDefaultDate();
+      refreshPeopleList();
+      refreshExpenseTable();
+    };
+  </script>
+
+</body>
+</html>
