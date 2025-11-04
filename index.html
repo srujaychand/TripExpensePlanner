@@ -172,15 +172,27 @@
 
   <div class="print-area" id="print-area"></div>
 
-  <script>
+<script>
+/* ---------- CONFIG ---------- */
 const RESET_PASSWORD = "1234";
 
+/* ---------- STORAGE & MIGRATION ---------- */
 function loadData() {
-  return {
-    people: JSON.parse(localStorage.getItem('people') || '[]'),
-    expenses: JSON.parse(localStorage.getItem('expenses') || '[]'),
-    deposits: JSON.parse(localStorage.getItem('deposits') || '[]')
-  };
+  // migrate if people stored as ["name","name"]
+  let peopleRaw = JSON.parse(localStorage.getItem('people') || '[]');
+  if (peopleRaw.length && typeof peopleRaw[0] === 'string') {
+    // convert to objects with stable id
+    peopleRaw = peopleRaw.map((n, idx) => ({ id: 'p' + Date.now() + '_' + idx, name: n }));
+  }
+  const expenses = JSON.parse(localStorage.getItem('expenses') || '[]').map(e => {
+    // older expenses may have involved as names; convert names -> ids if possible
+    return e;
+  });
+  const deposits = JSON.parse(localStorage.getItem('deposits') || '[]').map(d => {
+    return d;
+  });
+  // if expenses used names earlier, we'll map them later after people load
+  return { people: peopleRaw, expenses, deposits };
 }
 function saveData(p, e, d) {
   localStorage.setItem('people', JSON.stringify(p));
@@ -188,72 +200,128 @@ function saveData(p, e, d) {
   localStorage.setItem('deposits', JSON.stringify(d));
 }
 
-/* PEOPLE */
+/* ---------- HELPERS ---------- */
+function findPersonNameById(id) {
+  const { people } = loadData();
+  const found = people.find(x => x.id === id);
+  return found ? found.name : '(unknown)';
+}
+function ensureExpenseInvolvedIds() {
+  // Convert legacy expenses that stored involved as names into ids when possible.
+  const data = loadData();
+  const { people, expenses, deposits } = data;
+  const nameToId = {};
+  people.forEach(p => nameToId[p.name] = p.id);
+  let changed = false;
+  expenses.forEach(exp => {
+    if (!Array.isArray(exp.involved)) exp.involved = [];
+    // detect if first element is a name (string without 'p' prefix) — we assume ids start with 'p'
+    if (exp.involved.length && exp.involved[0] && !exp.involved[0].startsWith?.('p')) {
+      // convert names to ids where possible
+      exp.involved = exp.involved.map(n => nameToId[n] || n); // keep original if mapping missing
+      changed = true;
+    }
+  });
+  if (changed) saveData(people, expenses, deposits);
+}
+
+/* ---------- PEOPLE ---------- */
 function refreshPeopleList() {
   const { people } = loadData();
   const ul = document.getElementById('peopleList');
   ul.innerHTML = '';
   people.forEach((p, i) => {
     const li = document.createElement('li');
-    li.innerHTML = `${p}
-    <button class="icon-btn edit" onclick="editPerson(${i})">Edit</button>`;
+    li.innerHTML = `
+      ${escapeHtml(p.name)}
+      <button class="icon-btn edit" onclick="editPerson('${p.id}')">Edit</button>
+      <button class="icon-btn delete" onclick="deletePerson('${p.id}')">Delete</button>`;
     ul.appendChild(li);
   });
 
+  // involved persons container (checkboxes) uses stable ids
   const cont = document.getElementById('involvedPersonsContainer');
   cont.innerHTML = '';
   people.forEach(p => {
     const cb = document.createElement('input');
-    cb.type = 'checkbox'; cb.id = 'involve_' + p; cb.value = p; cb.checked = true;
+    cb.type = 'checkbox';
+    cb.id = 'involve_' + p.id;
+    cb.value = p.id;
+    cb.checked = true;
     const lbl = document.createElement('label');
-    lbl.htmlFor = cb.id; lbl.textContent = p;
+    lbl.htmlFor = cb.id; lbl.textContent = p.name;
     const div = document.createElement('div');
     div.appendChild(cb); div.appendChild(lbl);
     cont.appendChild(div);
   });
 }
 
-/* ADD PERSON */
 function addPerson() {
-  const name = document.getElementById('personName').value.trim();
+  const nameEl = document.getElementById('personName');
+  const name = nameEl.value.trim();
   if (!name) return alert('Enter a name');
   const { people, expenses, deposits } = loadData();
-  if (people.includes(name)) return alert('Person already exists');
-  people.push(name);
+  if (people.some(p => p.name.toLowerCase() === name.toLowerCase())) return alert('Person already exists');
+  const newPerson = { id: 'p' + Date.now() + '_' + Math.floor(Math.random()*1000), name };
+  people.push(newPerson);
   saveData(people, expenses, deposits);
-  document.getElementById('personName').value = '';
+  nameEl.value = '';
   refreshPeopleList();
 }
 
-/* EDIT PERSON */
-function editPerson(i) {
+/* Edit by id */
+function editPerson(personId) {
   const pwd = prompt('Enter password to edit:');
   if (pwd !== RESET_PASSWORD) return alert('Wrong password.');
-  const { people, expenses, deposits } = loadData();
-  const oldName = people[i];
+  const data = loadData();
+  const { people, expenses, deposits } = data;
+  const idx = people.findIndex(p => p.id === personId);
+  if (idx === -1) return alert('Person not found');
+  const oldName = people[idx].name;
   const newName = prompt('Enter new name:', oldName);
   if (!newName) return;
-  people[i] = newName.trim();
-  expenses.forEach(e => {
-    e.involved = e.involved.map(x => (x === oldName ? newName : x));
-  });
-  deposits.forEach(d => { if (d.person === oldName) d.person = newName; });
+  people[idx].name = newName.trim();
+  // update deposits (they use personId) -> no change needed; expenses store ids -> no change to ids, only names shown by lookup
   saveData(people, expenses, deposits);
   refreshPeopleList(); refreshExpenseTable(); refreshDepositsTable();
 }
 
-/* EXPENSES */
+/* Delete person by id */
+function deletePerson(personId) {
+  const pwd = prompt('Enter password to delete:');
+  if (pwd !== RESET_PASSWORD) return alert('Wrong password.');
+  const data = loadData();
+  const { people, expenses, deposits } = data;
+  const person = people.find(p => p.id === personId);
+  if (!person) return alert('Person not found');
+  if (!confirm(`Delete ${person.name}? This will remove them from deposits and expenses.`)) return;
+  // Remove person
+  const newPeople = people.filter(p => p.id !== personId);
+  // Remove any expenses where they were involved (or alternatively remove them from involved list — here we remove the expense)
+  const newExpenses = expenses.filter(e => !e.involved.includes(personId));
+  // Remove deposits entry for that person
+  const newDeposits = deposits.filter(d => d.personId !== personId);
+  saveData(newPeople, newExpenses, newDeposits);
+  refreshPeopleList(); refreshExpenseTable(); refreshDepositsTable();
+}
+
+/* ---------- EXPENSES ---------- */
 function refreshExpenseTable() {
+  ensureExpenseInvolvedIds();
   const { expenses } = loadData();
   const tbody = document.querySelector('#expenseTable tbody');
   tbody.innerHTML = '';
   expenses.forEach((e, i) => {
+    const involvedNames = (e.involved || []).map(id => escapeHtml(findPersonNameById(id))).join(', ');
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${e.date}</td><td>${e.category}</td><td>${e.amount}</td>
-      <td>${e.involved.join(', ')}</td><td>${e.notes}</td>
+      <td>${escapeHtml(e.date || '')}</td>
+      <td>${escapeHtml(e.category || '')}</td>
+      <td>${Number(e.amount).toFixed(2)}</td>
+      <td>${involvedNames}</td>
+      <td>${escapeHtml(e.notes || '')}</td>
       <td>
-        <button class="icon-btn edit" onclick="editExpense(${i})">Edit</button>
+        <button class="icon-btn edit" onclick="openEditModal(${i})">Edit</button>
         <button class="icon-btn delete" onclick="deleteExpense(${i})">Delete</button>
       </td>`;
     tbody.appendChild(tr);
@@ -267,10 +335,11 @@ function addExpense() {
   const notes = document.getElementById('notes').value;
   if (!date || !cat || isNaN(amt)) return alert('Fill all fields');
   const { people, expenses, deposits } = loadData();
-  const involved = people.filter(p => document.getElementById('involve_' + p)?.checked);
-  if (!involved.length) return alert('Select at least one');
+  const involved = people.filter(p => document.getElementById('involve_' + p.id)?.checked).map(p => p.id);
+  if (!involved.length) return alert('Select at least one person');
   expenses.push({ date, category: cat, amount: amt, notes, involved });
   saveData(people, expenses, deposits);
+  // reset form
   document.getElementById('category').value = '';
   document.getElementById('amount').value = '';
   document.getElementById('notes').value = '';
@@ -278,94 +347,221 @@ function addExpense() {
   refreshExpenseTable();
 }
 
-function editExpense(i) {
-  const pwd = prompt('Enter password:');
-  if (pwd !== RESET_PASSWORD) return alert('Wrong password.');
-  const { people, expenses, deposits } = loadData();
-  const e = expenses[i];
-  const newAmt = parseFloat(prompt('Amount:', e.amount));
-  const newCat = prompt('Category:', e.category);
-  const newNotes = prompt('Notes:', e.notes);
-  
-  // Edit involved persons dynamically
-  const involved = [];
-  people.forEach(p => {
-    const checked = confirm(`Was ${p} involved? (OK = Yes, Cancel = No)`);
-    if (checked) involved.push(p);
-  });
-
-  if (isNaN(newAmt) || !newCat || involved.length === 0) return alert('Invalid data');
-  e.amount = newAmt; e.category = newCat; e.notes = newNotes; e.involved = involved;
-  saveData(people, expenses, deposits);
-  refreshExpenseTable();
-}
-
+/* Delete expense by index */
 function deleteExpense(i) {
   const pwd = prompt('Enter password:');
   if (pwd !== RESET_PASSWORD) return alert('Wrong password.');
-  const { people, expenses, deposits } = loadData();
-  expenses.splice(i, 1);
-  saveData(people, expenses, deposits);
+  const d = loadData();
+  d.expenses.splice(i, 1);
+  saveData(d.people, d.expenses, d.deposits);
   refreshExpenseTable();
 }
 
-/* DEPOSITS */
+/* ---------- EDIT EXPENSE MODAL ---------- */
+function openEditModal(i) {
+  const pwd = prompt('Enter password to edit expense:');
+  if (pwd !== RESET_PASSWORD) return alert('Wrong password.');
+  const data = loadData();
+  const { people, expenses, deposits } = data;
+  const e = expenses[i];
+  if (!e) return alert('Expense not found');
+
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    background:rgba(0,0,0,0.45);display:flex;align-items:center;
+    justify-content:center;z-index:9999;padding:20px;box-sizing:border-box;
+  `;
+
+  modal.innerHTML = `
+    <div style="background:white;padding:18px;border-radius:10px;width:420px;max-width:100%;">
+      <h3 style="margin-top:0;margin-bottom:8px;">Edit Expense</h3>
+      <div style="margin-bottom:8px;"><label>Date</label><input id="editDate" type="date" value="${escapeAttr(e.date)}" style="width:100%;padding:6px;margin-top:4px;"></div>
+      <div style="margin-bottom:8px;"><label>Category</label><input id="editCategory" type="text" value="${escapeAttr(e.category)}" style="width:100%;padding:6px;margin-top:4px;"></div>
+      <div style="margin-bottom:8px;"><label>Amount</label><input id="editAmount" type="number" value="${escapeAttr(e.amount)}" style="width:100%;padding:6px;margin-top:4px;"></div>
+      <div style="margin-bottom:8px;"><label>Notes</label><textarea id="editNotes" style="width:100%;padding:6px;margin-top:4px;">${escapeHtml(e.notes || '')}</textarea></div>
+      <div style="margin-bottom:10px;"><label>Involved</label><div id="editPeopleList" style="max-height:140px;overflow:auto;border:1px solid #eee;padding:8px;border-radius:6px;margin-top:6px;"></div></div>
+      <div style="text-align:right;">
+        <button class="btn" id="saveEditBtn">Save</button>
+        <button class="btn" id="cancelEditBtn" style="background:#ccc;color:#000;">Cancel</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+  const list = modal.querySelector('#editPeopleList');
+  people.forEach(p => {
+    const div = document.createElement('div');
+    div.style.marginBottom = '6px';
+    const checked = (e.involved || []).includes(p.id) ? 'checked' : '';
+    div.innerHTML = `<input id="chk_${p.id}" type="checkbox" value="${p.id}" ${checked}> <label for="chk_${p.id}">${escapeHtml(p.name)}</label>`;
+    list.appendChild(div);
+  });
+
+  modal.querySelector('#cancelEditBtn').onclick = () => modal.remove();
+  modal.querySelector('#saveEditBtn').onclick = () => {
+    const date = modal.querySelector('#editDate').value;
+    const cat = modal.querySelector('#editCategory').value.trim();
+    const amt = parseFloat(modal.querySelector('#editAmount').value);
+    const notes = modal.querySelector('#editNotes').value;
+    const involved = people.filter(p => modal.querySelector('#chk_' + p.id)?.checked).map(p => p.id);
+    if (!date || !cat || isNaN(amt) || involved.length === 0) return alert('Invalid data');
+    e.date = date; e.category = cat; e.amount = amt; e.notes = notes; e.involved = involved;
+    saveData(people, expenses, deposits);
+    refreshExpenseTable();
+    modal.remove();
+  };
+}
+
+/* ---------- DEPOSITS ---------- */
 function refreshDepositsTable() {
   const { people, deposits } = loadData();
   const tbody = document.querySelector('#depositTable tbody');
   tbody.innerHTML = '';
   people.forEach(p => {
-    const d = deposits.find(x => x.person === p);
+    const d = deposits.find(x => x.personId === p.id);
     const amt = d ? d.amount : 0;
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${p}</td>
-      <td><input type="number" id="dep_${p}" value="${amt}" min="0"></td>
-      <td><button class="btn" onclick="updateDeposit('${p}')">Save</button></td>`;
+    tr.innerHTML = `<td>${escapeHtml(p.name)}</td>
+      <td><input type="number" id="dep_${p.id}" value="${escapeAttr(amt)}" min="0"></td>
+      <td><button class="btn" onclick="updateDeposit('${p.id}')">Save</button></td>`;
     tbody.appendChild(tr);
   });
 }
 
-function updateDeposit(p) {
+function updateDeposit(personId) {
   const pwd = prompt('Enter password:');
   if (pwd !== RESET_PASSWORD) return alert('Wrong password.');
-  const amt = parseFloat(document.getElementById('dep_' + p).value || '0');
-  const { people, expenses, deposits } = loadData();
-  const ex = deposits.find(d => d.person === p);
-  if (ex) ex.amount = amt; else deposits.push({ person: p, amount: amt });
+  const amt = parseFloat(document.getElementById('dep_' + personId).value || '0');
+  const data = loadData();
+  const { people, expenses, deposits } = data;
+  const ex = deposits.find(d => d.personId === personId);
+  if (ex) ex.amount = amt; else deposits.push({ personId, amount: amt });
   saveData(people, expenses, deposits);
   refreshDepositsTable();
 }
 
-/* SETTLEMENT */
+/* ---------- SETTLEMENT ---------- */
 function refreshSettlementTab() {
+  ensureExpenseInvolvedIds();
   const { people, expenses, deposits } = loadData();
   const tbody = document.querySelector('#settlementTable tbody');
   tbody.innerHTML = '';
-  const paid = {}, share = {}, dep = {};
-  people.forEach(p => { paid[p]=0; share[p]=0; dep[p]=deposits.find(x=>x.person===p)?.amount||0; });
-  expenses.forEach(e=>{
-    const per = e.amount / e.involved.length;
-    e.involved.forEach(x=>share[x]+=per);
+
+  // initialize maps
+  const share = {};
+  const dep = {};
+  people.forEach(p => { share[p.id] = 0; dep[p.id] = (deposits.find(d => d.personId === p.id)?.amount) || 0; });
+
+  let totalDeposits = 0, totalExpenses = 0;
+  // calc shares and totals
+  expenses.forEach(e => {
+    const partCount = (e.involved && e.involved.length) || 1;
+    const per = e.amount / partCount;
+    (e.involved || []).forEach(id => {
+      if (share[id] === undefined) share[id] = 0;
+      share[id] += per;
+    });
+    totalExpenses += Number(e.amount) || 0;
   });
-  people.forEach(p=>{
-    const totalPaid = dep[p];
-    const balance = totalPaid - share[p];
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${p}</td><td>${totalPaid.toFixed(2)}</td><td>${share[p].toFixed(2)}</td><td>${balance.toFixed(2)}</td>`;
+  people.forEach(p => totalDeposits += Number(dep[p.id]) || 0);
+
+  // render per person rows
+  people.forEach(p => {
+    const totalPaid = Number(dep[p.id] || 0);
+    const totalShare = Number(share[p.id] || 0);
+    const balance = totalPaid - totalShare;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${escapeHtml(p.name)}</td><td>${totalPaid.toFixed(2)}</td><td>${totalShare.toFixed(2)}</td><td>${balance.toFixed(2)}</td>`;
     tbody.appendChild(tr);
   });
+
+  // summary area (separate from table totals row)
+  const summaryBox = document.getElementById('settlement-summary');
+  if (summaryBox) {
+    summaryBox.innerHTML = `
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;">
+        <div style="background:#e8f7ff;padding:8px;border-radius:6px;min-width:160px;">
+          <div style="font-size:12px;color:#555">Total Deposits</div>
+          <div style="font-weight:700;font-size:18px">${totalDeposits.toFixed(2)}</div>
+        </div>
+        <div style="background:#fff0f0;padding:8px;border-radius:6px;min-width:160px;">
+          <div style="font-size:12px;color:#555">Total Expenses</div>
+          <div style="font-weight:700;font-size:18px">${totalExpenses.toFixed(2)}</div>
+        </div>
+        <div style="background:#f0fff7;padding:8px;border-radius:6px;min-width:160px;">
+          <div style="font-size:12px;color:#555">Remaining Balance</div>
+          <div style="font-weight:700;font-size:18px">${(totalDeposits - totalExpenses).toFixed(2)}</div>
+        </div>
+      </div>
+    `;
+  }
 }
 
-/* UTILITIES */
+/* ---------- PRINT ---------- */
+function printAll() {
+  ensureExpenseInvolvedIds();
+  const { people, expenses, deposits } = loadData();
+
+  // build HTML for printing
+  let html = `<h2>Expenses</h2><table style="width:100%;border-collapse:collapse;" border="1">
+    <thead><tr><th>Date</th><th>Category</th><th>Amount</th><th>Involved</th><th>Notes</th></tr></thead><tbody>`;
+  expenses.forEach(e => {
+    const involvedNames = (e.involved || []).map(id => escapeHtml(findPersonNameById(id))).join(', ');
+    html += `<tr><td>${escapeHtml(e.date)}</td><td>${escapeHtml(e.category)}</td><td>${Number(e.amount).toFixed(2)}</td><td>${involvedNames}</td><td>${escapeHtml(e.notes||'')}</td></tr>`;
+  });
+  html += `</tbody></table>`;
+
+  // Settlement summary and per-person
+  let totalDeposits = 0, totalExpenses = 0;
+  const share = {}, dep = {};
+  people.forEach(p => { share[p.id] = 0; dep[p.id] = (deposits.find(d => d.personId === p.id)?.amount) || 0; totalDeposits += dep[p.id]; });
+  expenses.forEach(e => {
+    const partCount = (e.involved && e.involved.length) || 1;
+    const per = e.amount / partCount;
+    (e.involved || []).forEach(id => { share[id] = (share[id] || 0) + per; });
+    totalExpenses += Number(e.amount) || 0;
+  });
+
+  html += `<h2 style="margin-top:18px;">Settlement</h2>
+    <table style="width:100%;border-collapse:collapse;" border="1">
+      <thead><tr><th>Person</th><th>Total Paid</th><th>Total Share</th><th>Balance</th></tr></thead><tbody>`;
+  people.forEach(p => {
+    const totalPaid = Number(dep[p.id] || 0);
+    const totalShare = Number(share[p.id] || 0);
+    const balance = totalPaid - totalShare;
+    html += `<tr><td>${escapeHtml(p.name)}</td><td>${totalPaid.toFixed(2)}</td><td>${totalShare.toFixed(2)}</td><td>${balance.toFixed(2)}</td></tr>`;
+  });
+  html += `</tbody></table>`;
+
+  html += `<div style="margin-top:12px;">
+    <strong>Total Deposits:</strong> ${totalDeposits.toFixed(2)} &nbsp; &nbsp;
+    <strong>Total Expenses:</strong> ${totalExpenses.toFixed(2)} &nbsp; &nbsp;
+    <strong>Remaining Balance:</strong> ${(totalDeposits - totalExpenses).toFixed(2)}
+  </div>`;
+
+  // open print window
+  const win = window.open('', '_blank');
+  win.document.write(`<html><head><title>Print</title></head><body>${html}</body></html>`);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); win.close(); }, 300);
+}
+
+/* ---------- UTILITIES ---------- */
 function setDefaultDate(){document.getElementById('expDate').value=new Date().toISOString().slice(0,10);}
+
 function resetAll(){
-  const pwd=prompt('Enter reset password:');
-  if(pwd!==RESET_PASSWORD)return alert('Wrong password.');
-  localStorage.clear();refreshPeopleList();refreshExpenseTable();refreshDepositsTable();
-  document.querySelector('#settlementTable tbody').innerHTML='';
+  const pwd = prompt('Enter reset password:');
+  if (pwd !== RESET_PASSWORD) return alert('Wrong password.');
+  localStorage.clear();
+  refreshPeopleList(); refreshExpenseTable(); refreshDepositsTable();
+  document.querySelector('#settlementTable tbody').innerHTML = '';
+  const summaryBox = document.getElementById('settlement-summary');
+  if (summaryBox) summaryBox.innerHTML = '';
 }
 
-/* TABS */
+/* ---------- TABS ---------- */
 document.querySelectorAll('.tab').forEach(tab=>{
   tab.addEventListener('click',()=>{
     document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
@@ -373,12 +569,44 @@ document.querySelectorAll('.tab').forEach(tab=>{
     tab.classList.add('active');
     const id=tab.dataset.tab;
     document.getElementById(id).classList.add('active');
-    if(id==='settlement')refreshSettlementTab();
-    if(id==='deposits')refreshDepositsTable();
+    if(id==='settlement') refreshSettlementTab();
+    if(id==='deposits') refreshDepositsTable();
   });
 });
 
-window.onload=()=>{setDefaultDate();refreshPeopleList();refreshExpenseTable();};
-  </script>
+/* ---------- SAFE HTML helpers ---------- */
+function escapeHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s)
+    .replaceAll('&','&amp;')
+    .replaceAll('<','&lt;')
+    .replaceAll('>','&gt;')
+    .replaceAll('"','&quot;')
+    .replaceAll("'",'&#39;');
+}
+function escapeAttr(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replaceAll('"','&quot;');
+}
+
+/* ---------- INITIALIZE ONLOAD ---------- */
+window.onload = () => {
+  // ensure older data formats converted
+  ensureExpenseInvolvedIds();
+  setDefaultDate();
+  refreshPeopleList();
+  refreshExpenseTable();
+  // create a settlement summary container if not present
+  const settlementTab = document.getElementById('settlement');
+  if (settlementTab && !document.getElementById('settlement-summary')) {
+    const summary = document.createElement('div');
+    summary.id = 'settlement-summary';
+    settlementTab.appendChild(summary);
+  }
+  refreshDepositsTable();
+};
+</script>
+
+
 </body>
 </html>
