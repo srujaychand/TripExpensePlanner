@@ -25,21 +25,9 @@
       padding: 20px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
-    .tabs {
-      display: flex;
-      margin-bottom: 20px;
-    }
-    .tab {
-      flex: 1;
-      padding: 10px;
-      text-align: center;
-      cursor: pointer;
-      border-bottom: 2px solid #ccc;
-    }
-    .tab.active {
-      border-bottom: 2px solid #0077b6;
-      font-weight: bold;
-    }
+    .tabs { display: flex; margin-bottom: 20px; }
+    .tab { flex: 1; padding: 10px; text-align: center; cursor: pointer; border-bottom: 2px solid #ccc; }
+    .tab.active { border-bottom: 2px solid #0077b6; font-weight: bold; }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
     .form-group { margin-bottom: 12px; }
@@ -53,57 +41,32 @@
       border-radius: 4px; cursor: pointer; margin-right: 8px;
     }
     .btn:hover { background: #005f8e; }
-    table {
-      width: 100%; border-collapse: collapse; margin-top: 15px;
-    }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
     table, th, td { border: 1px solid #aaa; }
     th, td { padding: 8px; text-align: left; }
     th { background: #e0f0ff; }
     .settlement-table th, .settlement-table td { text-align: center; }
     .table-responsive { overflow-x: auto; width: 100%; }
 
-    
-    /* Modern Rounded Icon Buttons */
-.icon-btn {
-  border: none;
-  border-radius: 8px;
-  padding: 6px 10px;
-  margin-left: 5px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  color: white;
-  font-size: 13px;
-  font-weight: 500;
-  transition: all 0.25s ease;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
-}
-
-.icon-btn svg {
-  width: 16px;
-  height: 16px;
-  fill: currentColor;
-}
-
-/* Edit Button */
-.icon-btn.edit {
-  background: #0077b6;
-}
-.icon-btn.edit:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(59,130,246,0.4);
-}
-
-/* Delete Button */
-.icon-btn.delete {
-  background: #fc1e35
-}
-.icon-btn.delete:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(239,68,68,0.4);
-}
-
+    .icon-btn {
+      border: none;
+      border-radius: 8px;
+      padding: 6px 10px;
+      margin-left: 5px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      color: white;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.25s ease;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    }
+    .icon-btn.edit { background: #0077b6; }
+    .icon-btn.edit:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(59,130,246,0.4); }
+    .icon-btn.delete { background: #fc1e35; }
+    .icon-btn.delete:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(239,68,68,0.4); }
 
     @media print {
       body * { visibility: hidden; }
@@ -157,12 +120,8 @@
         <input type="number" id="amount" placeholder="Amount"/>
       </div>
       <div class="form-group">
-        <label>Involved Persons (unselect if not involved)</label>
+        <label>Involved Persons</label>
         <div id="involvedPersonsContainer"></div>
-      </div>
-      <div class="form-group">
-        <label for="paidBy">Paid By</label>
-        <select id="paidBy"><option value="">-- Select Person --</option></select>
       </div>
       <div class="form-group">
         <label for="notes">Notes</label>
@@ -175,8 +134,7 @@
         <table id="expenseTable">
           <thead>
             <tr>
-              <th>Date</th><th>Category</th><th>Amount</th>
-              <th>Paid By</th><th>Involved</th><th>Notes</th><th>Action</th>
+              <th>Date</th><th>Category</th><th>Amount</th><th>Involved</th><th>Notes</th><th>Action</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -214,7 +172,6 @@
 
   <div class="print-area" id="print-area"></div>
 
-  <!-- SCRIPT -->
   <script>
 const RESET_PASSWORD = "1234";
 
@@ -238,30 +195,9 @@ function refreshPeopleList() {
   ul.innerHTML = '';
   people.forEach((p, i) => {
     const li = document.createElement('li');
-  //   li.innerHTML = `${p}
-  // <button class="icon-btn edit" title="Edit" onclick="editPerson(${i})">
-  //   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 0 0-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 0 0 0-2.828zM5 15v2h10v-2H5z"/></svg>
-  //   Edit
-  // </button>
-  // <button class="icon-btn delete" title="Delete" onclick="deletePerson(${i})">
-  //   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M6 8h8v10H6V8zm9-3h-3l-1-1H9L8 5H5v2h10V5z"/></svg>
-  //   Delete
-  // </button>`;
-   li.innerHTML = `${p}
-  <button class="icon-btn edit" title="Edit" onclick="editPerson(${i})">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 0 0-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 0 0 0-2.828zM5 15v2h10v-2H5z"/></svg>
-    Edit
-  </button>`;
+    li.innerHTML = `${p}
+    <button class="icon-btn edit" onclick="editPerson(${i})">Edit</button>`;
     ul.appendChild(li);
-  });
-
-  const paidSel = document.getElementById('paidBy');
-  paidSel.innerHTML = '<option value="">-- Select Person --</option>';
-  people.forEach(p => {
-    const opt = document.createElement('option');
-    opt.value = p;
-    opt.textContent = p;
-    paidSel.appendChild(opt);
   });
 
   const cont = document.getElementById('involvedPersonsContainer');
@@ -277,6 +213,7 @@ function refreshPeopleList() {
   });
 }
 
+/* ADD PERSON */
 function addPerson() {
   const name = document.getElementById('personName').value.trim();
   if (!name) return alert('Enter a name');
@@ -288,6 +225,7 @@ function addPerson() {
   refreshPeopleList();
 }
 
+/* EDIT PERSON */
 function editPerson(i) {
   const pwd = prompt('Enter password to edit:');
   if (pwd !== RESET_PASSWORD) return alert('Wrong password.');
@@ -297,25 +235,12 @@ function editPerson(i) {
   if (!newName) return;
   people[i] = newName.trim();
   expenses.forEach(e => {
-    if (e.paidBy === oldName) e.paidBy = newName;
     e.involved = e.involved.map(x => (x === oldName ? newName : x));
   });
   deposits.forEach(d => { if (d.person === oldName) d.person = newName; });
   saveData(people, expenses, deposits);
   refreshPeopleList(); refreshExpenseTable(); refreshDepositsTable();
 }
-
-// function deletePerson(i) {
-//   const pwd = prompt('Enter password:');
-//   if (pwd !== RESET_PASSWORD) return alert('Wrong password.');
-//   const { people, expenses, deposits } = loadData();
-//   const name = people[i];
-//   if (expenses.some(e => e.paidBy === name || e.involved.includes(name))) return alert('Cannot delete, used in expenses.');
-//   if (deposits.some(d => d.person === name)) return alert('Cannot delete, has deposit.');
-//   people.splice(i, 1);
-//   saveData(people, expenses, deposits);
-//   refreshPeopleList();
-// }
 
 /* EXPENSES */
 function refreshExpenseTable() {
@@ -326,10 +251,10 @@ function refreshExpenseTable() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${e.date}</td><td>${e.category}</td><td>${e.amount}</td>
-      <td>${e.paidBy}</td><td>${e.involved.join(', ')}</td><td>${e.notes}</td>
+      <td>${e.involved.join(', ')}</td><td>${e.notes}</td>
       <td>
-        <button class="icon-btn edit" title="Edit" onclick="editExpense(${i})">Edit</button>
-        <button class="icon-btn delete" title="Delete" onclick="deleteExpense(${i})">Delete</button>
+        <button class="icon-btn edit" onclick="editExpense(${i})">Edit</button>
+        <button class="icon-btn delete" onclick="deleteExpense(${i})">Delete</button>
       </td>`;
     tbody.appendChild(tr);
   });
@@ -339,13 +264,12 @@ function addExpense() {
   const date = document.getElementById('expDate').value;
   const cat = document.getElementById('category').value;
   const amt = parseFloat(document.getElementById('amount').value);
-  const paidBy = document.getElementById('paidBy').value;
   const notes = document.getElementById('notes').value;
-  if (!date || !cat || !paidBy || isNaN(amt)) return alert('Fill all fields');
+  if (!date || !cat || isNaN(amt)) return alert('Fill all fields');
   const { people, expenses, deposits } = loadData();
   const involved = people.filter(p => document.getElementById('involve_' + p)?.checked);
   if (!involved.length) return alert('Select at least one');
-  expenses.push({ date, category: cat, amount: amt, paidBy, notes, involved });
+  expenses.push({ date, category: cat, amount: amt, notes, involved });
   saveData(people, expenses, deposits);
   document.getElementById('category').value = '';
   document.getElementById('amount').value = '';
@@ -362,8 +286,16 @@ function editExpense(i) {
   const newAmt = parseFloat(prompt('Amount:', e.amount));
   const newCat = prompt('Category:', e.category);
   const newNotes = prompt('Notes:', e.notes);
-  if (isNaN(newAmt) || !newCat) return;
-  e.amount = newAmt; e.category = newCat; e.notes = newNotes;
+  
+  // Edit involved persons dynamically
+  const involved = [];
+  people.forEach(p => {
+    const checked = confirm(`Was ${p} involved? (OK = Yes, Cancel = No)`);
+    if (checked) involved.push(p);
+  });
+
+  if (isNaN(newAmt) || !newCat || involved.length === 0) return alert('Invalid data');
+  e.amount = newAmt; e.category = newCat; e.notes = newNotes; e.involved = involved;
   saveData(people, expenses, deposits);
   refreshExpenseTable();
 }
@@ -413,11 +345,10 @@ function refreshSettlementTab() {
   people.forEach(p => { paid[p]=0; share[p]=0; dep[p]=deposits.find(x=>x.person===p)?.amount||0; });
   expenses.forEach(e=>{
     const per = e.amount / e.involved.length;
-    paid[e.paidBy]+=e.amount;
     e.involved.forEach(x=>share[x]+=per);
   });
   people.forEach(p=>{
-    const totalPaid = paid[p]+dep[p];
+    const totalPaid = dep[p];
     const balance = totalPaid - share[p];
     const tr=document.createElement('tr');
     tr.innerHTML=`<td>${p}</td><td>${totalPaid.toFixed(2)}</td><td>${share[p].toFixed(2)}</td><td>${balance.toFixed(2)}</td>`;
@@ -434,7 +365,6 @@ function resetAll(){
   document.querySelector('#settlementTable tbody').innerHTML='';
 }
 
-
 /* TABS */
 document.querySelectorAll('.tab').forEach(tab=>{
   tab.addEventListener('click',()=>{
@@ -449,95 +379,6 @@ document.querySelectorAll('.tab').forEach(tab=>{
 });
 
 window.onload=()=>{setDefaultDate();refreshPeopleList();refreshExpenseTable();};
-
-function printAll() {
-  const { people, expenses, deposits } = loadData();
-
-  // Build settlement data
-  const paid = {}, share = {}, dep = {};
-  people.forEach(p => { paid[p]=0; share[p]=0; dep[p]=deposits.find(x=>x.person===p)?.amount||0; });
-  expenses.forEach(e=>{
-    const per = e.amount / e.involved.length;
-    paid[e.paidBy]+=e.amount;
-    e.involved.forEach(x=>share[x]+=per);
-  });
-
-  const rows = people.map(p=>{
-    const totalPaid = paid[p]+dep[p];
-    const balance = totalPaid - share[p];
-    return `<tr><td>${p}</td><td>${totalPaid.toFixed(2)}</td><td>${share[p].toFixed(2)}</td><td>${balance.toFixed(2)}</td></tr>`;
-  }).join('');
-
-  // HTML content for print window
-  const html = `
-    <html>
-    <head>
-      <title>Trip Expense Report</title>
-      <style>
-        body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; color: #333; }
-        h1 { text-align: center; color: #0077b6; margin-bottom: 10px; }
-        h2 { color: #005f8e; border-bottom: 2px solid #0077b6; padding-bottom: 5px; margin-top: 30px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; font-size: 14px; }
-        th { background: #e0f0ff; }
-        ul { margin: 5px 0 15px 20px; }
-        .footer { text-align: center; font-size: 12px; color: #777; margin-top: 30px; }
-        @media print {
-          @page { margin: 20mm; }
-        }
-      </style>
-    </head>
-    <body>
-      <h1>Trip Expense Planner Report</h1>
-
-      <h2>👥 People</h2>
-      <ul>${people.map(p => `<li>${p}</li>`).join('')}</ul>
-
-      <h2>🧾 Expenses</h2>
-      <table>
-        <tr><th>Date</th><th>Category</th><th>Amount</th><th>Paid By</th><th>Involved</th><th>Notes</th></tr>
-        ${expenses.map(e => `
-          <tr>
-            <td>${e.date}</td>
-            <td>${e.category}</td>
-            <td>${e.amount.toFixed(2)}</td>
-            <td>${e.paidBy}</td>
-            <td>${e.involved.join(', ')}</td>
-            <td>${e.notes || '-'}</td>
-          </tr>`).join('')}
-      </table>
-
-      <h2>🏦 Deposits</h2>
-      <table>
-        <tr><th>Person</th><th>Deposit Amount</th></tr>
-        ${people.map(p=>{
-          const d = deposits.find(x=>x.person===p);
-          const amt = d ? d.amount.toFixed(2) : '0.00';
-          return `<tr><td>${p}</td><td>${amt}</td></tr>`;
-        }).join('')}
-      </table>
-
-      <h2>📊 Settlement Summary</h2>
-      <table>
-        <tr><th>Person</th><th>Total Paid (Incl. Deposit)</th><th>Total Share</th><th>Balance</th></tr>
-        ${rows}
-      </table>
-
-      <div class="footer">
-        Generated by Trip Expense Planner &nbsp;|&nbsp; ${new Date().toLocaleString()}
-      </div>
-    </body>
-    </html>
-  `;
-
-  // Open a new window for print
-  const printWindow = window.open('', '_blank', 'width=900,height=600');
-  printWindow.document.write(html);
-  printWindow.document.close();
-  printWindow.focus();
-  printWindow.print();
-}
-
   </script>
 </body>
 </html>
